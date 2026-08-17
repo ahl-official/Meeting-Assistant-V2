@@ -179,6 +179,15 @@
   margin-top: 4px;
 }
 
+.adminLink {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #6b7280;
+  text-decoration: none;
+}
+
 @media (max-width: 768px) {
   .page { flex-direction: column; }
   .left { padding: 40px 24px; }

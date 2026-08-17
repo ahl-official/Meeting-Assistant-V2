@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
-import { getAllUsers, getMeetings } from '../lib/api';
+import { getAllUsers } from '../lib/api';
+import Navbar from './Navbar';
+import styles from '../styles/AdminLayout.module.css';
 
 const NAV_ITEMS = [
     { key: 'dashboard', label: 'Dashboard', icon: '▦' },
@@ -17,15 +19,11 @@ export default function AdminLayout({ children, active }) {
     const [users, setUsers] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
 
-    // Credentials section
-    const [credOpen, setCredOpen] = useState({});   // { username: bool }
+    const [credOpen, setCredOpen] = useState({});
     const [credCopied, setCredCopied] = useState({});
-
-    // User Data section
     const [selectedUser, setSelectedUser] = useState(null);
-
-    // Sidebar collapsed on mobile
     const [collapsed, setCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const needsUsers = active === 'credentials' || active === 'userdata' || active === 'userdata-browse';
 
@@ -38,6 +36,10 @@ export default function AdminLayout({ children, active }) {
             .finally(() => setLoadingUsers(false));
     }, [user, active]);
 
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [router.asPath]);
+
     const handleNav = (key) => {
         const routes = {
             dashboard: '/admin',
@@ -46,6 +48,7 @@ export default function AdminLayout({ children, active }) {
             meetings: '/admin/meetings',
         };
         router.push(routes[key] || '/admin');
+        setMobileOpen(false);
     };
 
     const handleSignOut = () => {
@@ -53,8 +56,6 @@ export default function AdminLayout({ children, active }) {
         router.push('/admin/login');
     };
 
-    // ── Credentials: expand/collapse a user row ──────────────────
-    // Password reveal removed — bcrypt hashes are one-way
     const toggleCred = (u) => {
         setCredOpen(prev => ({ ...prev, [u.username]: !prev[u.username] }));
     };
@@ -65,518 +66,190 @@ export default function AdminLayout({ children, active }) {
         setTimeout(() => setCredCopied(prev => ({ ...prev, [username]: false })), 2000);
     };
 
-    // ── User Data: select a user → main content changes ──────────
     const selectUser = (u) => {
         setSelectedUser(u);
-        // Pass selected user via query so the meetings page can pick it up
         router.push(`/admin/meetings?user=${encodeURIComponent(u.username)}`, undefined, { shallow: true });
+        setMobileOpen(false);
     };
 
+    const sidebarClass = [
+        styles.sidebar,
+        collapsed ? styles.sidebarCollapsed : '',
+        mobileOpen ? styles.sidebarOpen : '',
+    ].filter(Boolean).join(' ');
+
     return (
-        <div style={styles.shell}>
-            {/* ── Sidebar ───────────────────────────────────────────── */}
-            <aside style={{ ...styles.sidebar, width: collapsed ? 56 : 260 }}>
+        <div className={styles.shell}>
+            <Navbar variant="admin" />
 
-                {/* Logo / collapse toggle */}
-                <div style={styles.sidebarTop}>
-                    {!collapsed && (
-                        <div style={styles.brand}>
-                            <span style={styles.brandIcon}>⬡</span>
-                            <span style={styles.brandText}>Admin</span>
-                        </div>
-                    )}
-                    <button style={styles.collapseBtn} onClick={() => setCollapsed(c => !c)}>
-                        {collapsed ? '›' : '‹'}
-                    </button>
-                </div>
+            <div className={styles.mobileBar}>
+                <button
+                    className={styles.menuBtn}
+                    onClick={() => {
+                        setMobileOpen(o => !o);
+                        setCollapsed(false);
+                    }}
+                    aria-label="Toggle menu"
+                >
+                    {mobileOpen ? '✕' : '☰'}
+                </button>
+                <span className={styles.brandText}>Admin</span>
+            </div>
 
-                {/* Nav items */}
-                <nav style={styles.nav}>
-                    {NAV_ITEMS.map(item => {
-                        const isActive = active === item.key;
-                        return (
-                            <div key={item.key}>
-                                <button
-                                    style={{
-                                        ...styles.navBtn,
-                                        ...(isActive ? styles.navBtnActive : {}),
-                                        justifyContent: collapsed ? 'center' : 'flex-start',
-                                    }}
-                                    onClick={() => handleNav(item.key)}
-                                    title={collapsed ? item.label : undefined}
-                                >
-                                    <span style={styles.navIcon}>{item.icon}</span>
-                                    {!collapsed && <span style={styles.navLabel}>{item.label}</span>}
-                                </button>
+            <div className={styles.body}>
+                {mobileOpen && <div className={styles.overlay} onClick={() => setMobileOpen(false)} />}
 
-                                {/* ── Credentials sub-list ── */}
-                                {!collapsed && active === 'credentials' && item.key === 'credentials' && (
-                                    <div style={styles.subList}>
-                                        {loadingUsers ? (
-                                            <div style={styles.subLoading}>Loading…</div>
-                                        ) : users.length === 0 ? (
-                                            <div style={styles.subLoading}>No users</div>
-                                        ) : users.map(u => (
-                                            <div key={u.username} style={styles.credItem}>
-                                                <button
-                                                    style={styles.credRow}
-                                                    onClick={() => toggleCred(u)}
-                                                >
-                                                    <span style={styles.credAvatar}>
-                                                        {u.username[0].toUpperCase()}
-                                                    </span>
-                                                    <span style={styles.credName}>{u.username}</span>
-                                                    <span style={{
-                                                        ...styles.credChevron,
-                                                        transform: credOpen[u.username] ? 'rotate(90deg)' : 'none'
-                                                    }}>›</span>
-                                                </button>
-
-                                                {credOpen[u.username] && (
-                                                    <div style={styles.credExpanded}>
-                                                        <div style={styles.credField}>
-                                                            <span style={styles.credFieldLabel}>Username</span>
-                                                            <div style={styles.credFieldRow}>
-                                                                <span style={styles.credFieldValue}>{u.username}</span>
-                                                                <button style={styles.copyBtn} onClick={() => copyCred(u.username + '_u', u.username)}>
-                                                                    {credCopied[u.username + '_u'] ? '✓' : '⧉'}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div style={styles.credField}>
-                                                            <span style={styles.credFieldLabel}>Password</span>
-                                                            <div style={styles.credFieldRow}>
-                                                                <span style={styles.credFieldValue}>
-                                                                    Not available (hashed)
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        {u.email && (
-                                                            <div style={styles.credMeta}>{u.email}</div>
-                                                        )}
-                                                        {u.phone && (
-                                                            <div style={styles.credMeta}>{u.phone}</div>
-                                                        )}
-                                                        <div style={styles.credMeta}>
-                                                            <span style={{
-                                                                ...styles.credStatus,
-                                                                background: u.active ? '#dcfce7' : '#fee2e2',
-                                                                color: u.active ? '#166534' : '#991b1b',
-                                                            }}>
-                                                                {u.active ? 'Active' : 'Inactive'}
-                                                            </span>
-                                                            {u.isAdmin && (
-                                                                <span style={styles.credAdminBadge}>Admin</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* ── User Data sub-list ── */}
-                                {!collapsed && active === 'userdata' && item.key === 'userdata' && (
-                                    <div style={styles.subList}>
-                                        {loadingUsers ? (
-                                            <div style={styles.subLoading}>Loading…</div>
-                                        ) : users.length === 0 ? (
-                                            <div style={styles.subLoading}>No users</div>
-                                        ) : users.map(u => (
-                                            <button
-                                                key={u.username}
-                                                style={{
-                                                    ...styles.userDataRow,
-                                                    ...(selectedUser?.username === u.username ? styles.userDataRowActive : {}),
-                                                }}
-                                                onClick={() => selectUser(u)}
-                                            >
-                                                <span style={styles.credAvatar}>
-                                                    {u.username[0].toUpperCase()}
-                                                </span>
-                                                <div style={styles.userDataInfo}>
-                                                    <span style={styles.userDataName}>{u.username}</span>
-                                                    <span style={styles.userDataSub}>{u.email || u.phone || '—'}</span>
-                                                </div>
-                                                <span style={{
-                                                    width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                                                    background: u.active ? '#22c55e' : '#9ca3af',
-                                                }} />
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                <aside className={sidebarClass}>
+                    <div className={styles.sidebarTop}>
+                        {!collapsed && (
+                            <div className={styles.brand}>
+                                <span className={styles.brandText}>Navigation</span>
                             </div>
-                        );
-                    })}
-                </nav>
-
-                {/* Bottom: user + sign out */}
-                {!collapsed && (
-                    <div style={styles.sidebarBottom}>
-                        <div style={styles.adminUser}>
-                            <div style={styles.adminAvatar}>
-                                {user?.username?.[0]?.toUpperCase() || 'A'}
-                            </div>
-                            <div style={styles.adminInfo}>
-                                <span style={styles.adminName}>{user?.username}</span>
-                                <span style={styles.adminRole}>Administrator</span>
-                            </div>
-                        </div>
-                        <button style={styles.signOutBtn} onClick={handleSignOut}>
-                            Sign out
+                        )}
+                        <button
+                            className={styles.collapseBtn}
+                            onClick={() => setCollapsed(c => !c)}
+                            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        >
+                            {collapsed ? '›' : '‹'}
                         </button>
                     </div>
-                )}
-                {collapsed && (
-                    <button style={{ ...styles.signOutBtn, margin: '8px auto', width: 36 }} onClick={handleSignOut} title="Sign out">
-                        ↩
-                    </button>
-                )}
-            </aside>
 
-            {/* ── Main content ─────────────────────────────────────── */}
-            <main style={styles.content}>
-                {children}
-            </main>
+                    <nav className={styles.nav}>
+                        {NAV_ITEMS.map(item => {
+                            const isActive = active === item.key;
+                            return (
+                                <div key={item.key}>
+                                    <button
+                                        className={styles.navBtn + (isActive ? ' ' + styles.navBtnActive : '')}
+                                        style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
+                                        onClick={() => handleNav(item.key)}
+                                        title={collapsed ? item.label : undefined}
+                                    >
+                                        <span className={styles.navIcon}>{item.icon}</span>
+                                        {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+                                    </button>
+
+                                    {!collapsed && active === 'credentials' && item.key === 'credentials' && (
+                                        <div className={styles.subList}>
+                                            {loadingUsers ? (
+                                                <div className={styles.subLoading}>Loading…</div>
+                                            ) : users.length === 0 ? (
+                                                <div className={styles.subLoading}>No users</div>
+                                            ) : users.map(u => (
+                                                <div key={u.username} className={styles.credItem}>
+                                                    <button className={styles.credRow} onClick={() => toggleCred(u)}>
+                                                        <span className={styles.credAvatar}>
+                                                            {u.username[0].toUpperCase()}
+                                                        </span>
+                                                        <span className={styles.credName}>{u.username}</span>
+                                                        <span
+                                                            className={styles.credChevron}
+                                                            style={{ transform: credOpen[u.username] ? 'rotate(90deg)' : 'none' }}
+                                                        >›</span>
+                                                    </button>
+
+                                                    {credOpen[u.username] && (
+                                                        <div className={styles.credExpanded}>
+                                                            <div className={styles.credField}>
+                                                                <span className={styles.credFieldLabel}>Username</span>
+                                                                <div className={styles.credFieldRow}>
+                                                                    <span className={styles.credFieldValue}>{u.username}</span>
+                                                                    <button className={styles.copyBtn} onClick={() => copyCred(u.username + '_u', u.username)}>
+                                                                        {credCopied[u.username + '_u'] ? '✓' : '⧉'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <div className={styles.credField}>
+                                                                <span className={styles.credFieldLabel}>Password</span>
+                                                                <div className={styles.credFieldRow}>
+                                                                    <span className={styles.credFieldValue}>
+                                                                        Not available (hashed)
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            {u.email && <div className={styles.credMeta}>{u.email}</div>}
+                                                            {u.phone && <div className={styles.credMeta}>{u.phone}</div>}
+                                                            <div className={styles.credMeta}>
+                                                                <span
+                                                                    className={styles.credStatus}
+                                                                    style={{
+                                                                        background: u.active ? '#D1FAE5' : 'var(--gray-100)',
+                                                                        color: u.active ? '#065F46' : 'var(--gray-600)',
+                                                                    }}
+                                                                >
+                                                                    {u.active ? 'Active' : 'Inactive'}
+                                                                </span>
+                                                                {u.isAdmin && (
+                                                                    <span className={styles.credAdminBadge}>Admin</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {!collapsed && active === 'userdata' && item.key === 'userdata' && (
+                                        <div className={styles.subList}>
+                                            {loadingUsers ? (
+                                                <div className={styles.subLoading}>Loading…</div>
+                                            ) : users.length === 0 ? (
+                                                <div className={styles.subLoading}>No users</div>
+                                            ) : users.map(u => (
+                                                <button
+                                                    key={u.username}
+                                                    className={styles.userDataRow + (selectedUser?.username === u.username ? ' ' + styles.userDataRowActive : '')}
+                                                    onClick={() => selectUser(u)}
+                                                >
+                                                    <span className={styles.credAvatar}>
+                                                        {u.username[0].toUpperCase()}
+                                                    </span>
+                                                    <div className={styles.userDataInfo}>
+                                                        <span className={styles.userDataName}>{u.username}</span>
+                                                        <span className={styles.userDataSub}>{u.email || u.phone || '—'}</span>
+                                                    </div>
+                                                    <span style={{
+                                                        width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                                                        background: u.active ? 'var(--success)' : 'var(--gray-400)',
+                                                    }} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </nav>
+
+                    {!collapsed && (
+                        <div className={styles.sidebarBottom}>
+                            <div className={styles.adminUser}>
+                                <div className={styles.adminAvatar}>
+                                    {user?.username?.[0]?.toUpperCase() || 'A'}
+                                </div>
+                                <div className={styles.adminInfo}>
+                                    <span className={styles.adminName}>{user?.username}</span>
+                                    <span className={styles.adminRole}>Administrator</span>
+                                </div>
+                            </div>
+                            <button className={styles.signOutBtn} onClick={handleSignOut}>
+                                Sign Out
+                            </button>
+                        </div>
+                    )}
+                    {collapsed && (
+                        <button className={styles.signOutBtn} onClick={handleSignOut} title="Sign out">
+                            ↩
+                        </button>
+                    )}
+                </aside>
+
+                <main className={styles.content}>
+                    {children}
+                </main>
+            </div>
         </div>
     );
 }
-
-// ── Styles ────────────────────────────────────────────────────
-const styles = {
-    shell: {
-        display: 'flex',
-        minHeight: '100vh',
-        background: 'var(--bg, #f8f7f4)',
-        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-    },
-    sidebar: {
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#0f0f10',
-        borderRight: '1px solid rgba(255,255,255,0.07)',
-        transition: 'width 0.2s ease',
-        overflowX: 'hidden',
-        overflowY: 'auto',
-        flexShrink: 0,
-        position: 'sticky',
-        top: 0,
-        height: '100vh',
-    },
-    sidebarTop: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '20px 16px 12px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-    },
-    brand: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-    },
-    brandIcon: {
-        fontSize: 22,
-        color: '#a78bfa',
-    },
-    brandText: {
-        fontSize: 15,
-        fontWeight: 600,
-        color: '#f5f5f0',
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-    },
-    collapseBtn: {
-        background: 'rgba(255,255,255,0.07)',
-        border: 'none',
-        borderRadius: 6,
-        color: '#9ca3af',
-        width: 26,
-        height: 26,
-        cursor: 'pointer',
-        fontSize: 16,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    nav: {
-        flex: 1,
-        padding: '12px 8px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-        overflowY: 'auto',
-    },
-    navBtn: {
-        width: '100%',
-        background: 'none',
-        border: 'none',
-        borderRadius: 8,
-        padding: '9px 10px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        cursor: 'pointer',
-        color: '#9ca3af',
-        fontSize: 13.5,
-        fontWeight: 500,
-        transition: 'background 0.15s, color 0.15s',
-        textAlign: 'left',
-        whiteSpace: 'nowrap',
-    },
-    navBtnActive: {
-        background: 'rgba(167,139,250,0.15)',
-        color: '#c4b5fd',
-    },
-    navIcon: {
-        fontSize: 16,
-        flexShrink: 0,
-        width: 20,
-        textAlign: 'center',
-    },
-    navLabel: {
-        flex: 1,
-    },
-    subList: {
-        margin: '4px 0 8px 12px',
-        borderLeft: '1px solid rgba(255,255,255,0.08)',
-        paddingLeft: 8,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-    },
-    subLoading: {
-        fontSize: 12,
-        color: '#6b7280',
-        padding: '6px 8px',
-    },
-
-    // ── Credentials ───────────────────────────────────────────
-    credItem: {
-        borderRadius: 6,
-        overflow: 'hidden',
-    },
-    credRow: {
-        width: '100%',
-        background: 'none',
-        border: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '6px 8px',
-        cursor: 'pointer',
-        borderRadius: 6,
-        color: '#d1d5db',
-        fontSize: 12.5,
-        textAlign: 'left',
-        transition: 'background 0.1s',
-    },
-    credAvatar: {
-        width: 24,
-        height: 24,
-        borderRadius: '50%',
-        background: 'rgba(167,139,250,0.2)',
-        color: '#c4b5fd',
-        fontSize: 11,
-        fontWeight: 600,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    credName: {
-        flex: 1,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-    },
-    credChevron: {
-        fontSize: 14,
-        color: '#6b7280',
-        transition: 'transform 0.15s',
-        flexShrink: 0,
-    },
-    credExpanded: {
-        background: 'rgba(255,255,255,0.04)',
-        borderRadius: 6,
-        padding: '10px 10px 8px',
-        margin: '2px 0 4px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-    },
-    credLoading: {
-        fontSize: 11,
-        color: '#6b7280',
-        textAlign: 'center',
-        padding: '4px 0',
-    },
-    credField: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 3,
-    },
-    credFieldLabel: {
-        fontSize: 10,
-        fontWeight: 600,
-        color: '#6b7280',
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-    },
-    credFieldRow: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        background: 'rgba(0,0,0,0.3)',
-        borderRadius: 5,
-        padding: '4px 8px',
-    },
-    credFieldValue: {
-        flex: 1,
-        fontSize: 12,
-        color: '#f3f4f6',
-        fontFamily: "'DM Mono', 'Courier New', monospace",
-        wordBreak: 'break-all',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-    },
-    copyBtn: {
-        background: 'none',
-        border: 'none',
-        color: '#a78bfa',
-        cursor: 'pointer',
-        fontSize: 13,
-        padding: '0 2px',
-        flexShrink: 0,
-        lineHeight: 1,
-    },
-    credMeta: {
-        fontSize: 11,
-        color: '#6b7280',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        flexWrap: 'wrap',
-    },
-    credStatus: {
-        fontSize: 10,
-        fontWeight: 600,
-        padding: '2px 7px',
-        borderRadius: 20,
-    },
-    credAdminBadge: {
-        fontSize: 10,
-        fontWeight: 600,
-        padding: '2px 7px',
-        borderRadius: 20,
-        background: 'rgba(167,139,250,0.2)',
-        color: '#c4b5fd',
-    },
-
-    // ── User Data ─────────────────────────────────────────────
-    userDataRow: {
-        width: '100%',
-        background: 'none',
-        border: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '6px 8px',
-        cursor: 'pointer',
-        borderRadius: 6,
-        color: '#d1d5db',
-        textAlign: 'left',
-        transition: 'background 0.1s',
-    },
-    userDataRowActive: {
-        background: 'rgba(167,139,250,0.15)',
-    },
-    userDataInfo: {
-        flex: 1,
-        minWidth: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-    },
-    userDataName: {
-        fontSize: 12.5,
-        fontWeight: 500,
-        color: '#e5e7eb',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-    },
-    userDataSub: {
-        fontSize: 11,
-        color: '#6b7280',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-    },
-
-    // ── Bottom ────────────────────────────────────────────────
-    sidebarBottom: {
-        padding: '12px 14px 16px',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-    },
-    adminUser: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-    },
-    adminAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
-        color: '#fff',
-        fontSize: 13,
-        fontWeight: 700,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    adminInfo: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-        minWidth: 0,
-    },
-    adminName: {
-        fontSize: 13,
-        fontWeight: 600,
-        color: '#f3f4f6',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-    },
-    adminRole: {
-        fontSize: 11,
-        color: '#6b7280',
-    },
-    signOutBtn: {
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 7,
-        color: '#9ca3af',
-        fontSize: 12.5,
-        padding: '7px 12px',
-        cursor: 'pointer',
-        textAlign: 'center',
-        transition: 'background 0.15s',
-        width: '100%',
-    },
-    content: {
-        flex: 1,
-        minWidth: 0,
-        overflowY: 'auto',
-    },
-};

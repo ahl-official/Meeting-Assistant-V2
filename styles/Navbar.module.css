@@ -27,6 +27,38 @@
   font-size: 18px;
 }
 
+.adminBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--blue-light);
+  color: var(--blue);
+  margin-left: 2px;
+}
+
+.backLink {
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .navAdmin {
+    padding: 0 16px;
+    gap: 8px;
+  }
+
+  .navAdmin .name {
+    font-size: 15px;
+  }
+
+  .navAdmin .userName {
+    display: none;
+  }
+}
+
 .right {
   display: flex;
   align-items: center;

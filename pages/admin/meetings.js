@@ -95,7 +95,6 @@ export default function AdminMeetings() {
                 <main className={styles.main}>
                     <div className={styles.header}>
                         <div className={styles.headerLeft}>
-                            <span className={styles.adminBadge}>Admin Portal</span>
                             <h1 className={styles.title}>
                                 {isUserMode ? `${targetUser}'s Meetings` : viewMode === 'userdata' ? 'User Data' : 'All Meetings'}
                             </h1>

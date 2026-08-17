@@ -47,10 +47,10 @@ export default function AdminIndex() {
     const recent = [...meetings].slice(0, 8);
 
     const stats = [
-        { icon: '👥', value: users.length, label: 'Total Users', sub: `${activeUsers} active`, color: '#7c3aed' },
-        { icon: '📋', value: meetings.length, label: 'Total Meetings', sub: 'across all users', color: '#0891b2' },
-        { icon: '⏱', value: totalDuration, label: 'Minutes Logged', sub: `~${Math.round(totalDuration / 60)}h total`, color: '#059669' },
-        { icon: '✅', value: totalActions, label: 'Action Points', sub: 'extracted by AI', color: '#d97706' },
+        { icon: '👥', value: users.length, label: 'Total Users', sub: `${activeUsers} active`, color: 'var(--blue)' },
+        { icon: '📋', value: meetings.length, label: 'Total Meetings', sub: 'across all users', color: 'var(--blue)' },
+        { icon: '⏱', value: totalDuration, label: 'Minutes Logged', sub: `~${Math.round(totalDuration / 60)}h total`, color: 'var(--success)' },
+        { icon: '✅', value: totalActions, label: 'Action Points', sub: 'extracted by AI', color: 'var(--blue)' },
     ];
 
     return (
@@ -59,7 +59,6 @@ export default function AdminIndex() {
                 <main className={styles.main}>
                     <div className={styles.header}>
                         <div className={styles.headerLeft}>
-                            <span className={styles.adminBadge}>Admin Portal</span>
                             <h1 className={styles.title}>Overview</h1>
                             <p className={styles.subtitle}>Welcome back, {user.username}</p>
                         </div>

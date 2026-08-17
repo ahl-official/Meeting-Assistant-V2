@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
 
-    const ADMIN_ACTIONS = new Set(['getAllUsers', 'getAllMeetings', 'setAdmin', 'setActive']);
+    const ADMIN_ACTIONS = new Set(['getAllUsers', 'getAllMeetings', 'setAdmin', 'setActive', 'resetPassword']);
     if (ADMIN_ACTIONS.has(action) && !session.user.isAdmin) {
       return res.status(403).json({ success: false, error: 'Admin access required' });
     }

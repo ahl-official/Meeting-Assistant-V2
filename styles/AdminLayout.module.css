@@ -1,0 +1,459 @@
+.shell {
+  min-height: 100vh;
+  background: var(--off-white);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.body {
+  display: flex;
+  min-height: calc(100vh - 60px);
+}
+
+.mobileBar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.menuBtn {
+  background: var(--white);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  color: var(--gray-600);
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay {
+  display: none;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  background: var(--white);
+  border-right: 1px solid var(--gray-200);
+  transition: width 0.2s ease, transform 0.2s ease;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex-shrink: 0;
+  position: sticky;
+  top: 60px;
+  height: calc(100vh - 60px);
+}
+
+.sidebarCollapsed {
+  width: 64px;
+}
+
+.sidebarTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 14px 10px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brandText {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-400);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.collapseBtn {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  color: var(--gray-600);
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.navBtn {
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--gray-600);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.navBtn:hover {
+  background: var(--gray-50);
+  color: var(--gray-900);
+}
+
+.navBtnActive {
+  background: var(--blue-light);
+  color: var(--blue);
+}
+
+.navBtnActive:hover {
+  background: var(--blue-light);
+  color: var(--blue);
+}
+
+.navIcon {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.navLabel {
+  flex: 1;
+}
+
+.subList {
+  margin: 4px 0 8px 12px;
+  border-left: 1px solid var(--gray-200);
+  padding-left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.subLoading {
+  font-size: 12px;
+  color: var(--gray-400);
+  padding: 6px 8px;
+}
+
+.credItem {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.credRow {
+  width: 100%;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  color: var(--gray-800);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.credRow:hover {
+  background: var(--gray-50);
+}
+
+.credAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.credName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credChevron {
+  font-size: 14px;
+  color: var(--gray-400);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.credExpanded {
+  background: var(--off-white);
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 2px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.credField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.credFieldLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-400);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.credFieldRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+
+.credFieldValue {
+  flex: 1;
+  font-size: 12px;
+  color: var(--gray-800);
+  font-family: 'DM Mono', 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyBtn {
+  background: none;
+  border: none;
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.credMeta {
+  font-size: 11px;
+  color: var(--gray-400);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.credStatus {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.credAdminBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--blue-light);
+  color: var(--blue);
+}
+
+.userDataRow {
+  width: 100%;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  color: var(--gray-800);
+  font-family: 'DM Sans', sans-serif;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.userDataRow:hover {
+  background: var(--gray-50);
+}
+
+.userDataRowActive {
+  background: var(--blue-light);
+}
+
+.userDataInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.userDataName {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userDataSub {
+  font-size: 11px;
+  color: var(--gray-400);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebarBottom {
+  padding: 12px 14px 16px;
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adminUser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adminAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.adminInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.adminName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminRole {
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+.signOutBtn {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--gray-600);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+}
+
+.signOutBtn:hover {
+  background: var(--gray-100);
+  color: var(--gray-900);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .mobileBar {
+    display: flex;
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    inset: 60px 0 0 0;
+    background: rgba(15, 23, 42, 0.25);
+    z-index: 40;
+  }
+
+  .sidebarTop {
+    display: none;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    z-index: 50;
+    width: 260px;
+    height: calc(100vh - 60px);
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebarCollapsed {
+    width: 260px;
+    transform: translateX(-100%);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+    width: 260px;
+  }
+}

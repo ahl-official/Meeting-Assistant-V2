@@ -53,7 +53,7 @@ export default function AdminLogin() {
     return (
         <div className={styles.loginPage}>
             <div className={styles.loginCard}>
-                <div className={styles.loginIcon}>⬡</div>
+                <div className={styles.loginIcon}>◈</div>
                 <h1 className={styles.loginTitle}>Admin Access</h1>
                 <p className={styles.loginSub}>Sign in with your admin credentials to continue.</p>
 

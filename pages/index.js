@@ -191,6 +191,10 @@ export default function AuthPage() {
               {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
+
+          <a href="/admin/login" className={styles.adminLink}>
+            Admin Login →
+          </a>
         </div>
       </div>
     </div>
