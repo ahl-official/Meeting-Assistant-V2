@@ -94,7 +94,7 @@ export default function AdminIndex() {
                                             <div key={i} className={styles.activityRow}>
                                                 <span className={styles.activityUser}>{m.owner}</span>
                                                 <span className={styles.activityTitle}>{m.title || 'Untitled Meeting'}</span>
-                                                <span className="badge badge-blue" style={{ flexShrink: 0 }}>{m.type || 'Meeting'}</span>
+                                                <span className="badge badge-blue" style={{ flexShrink: 0 }}>{m.type || 'recording'}</span>
                                                 <span className={styles.activityDate}>
                                                     {new Date(m.createdAt).toLocaleDateString('en-GB', {
                                                         day: 'numeric', month: 'short', year: 'numeric'

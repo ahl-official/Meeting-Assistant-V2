@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../lib/auth';
-import { login, register } from '../lib/api';
+import { signIn } from 'next-auth/react';
+import { getServerSession } from 'next-auth';
+import { authOptions } from './api/auth/[...nextauth]';
+import { register } from '../lib/api';
 import styles from '../styles/Auth.module.css';
 
 export default function AuthPage() {
@@ -9,7 +11,6 @@ export default function AuthPage() {
   const [form, setForm] = useState({ identifier: '', email: '', phone: '', username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
   const router = useRouter();
 
   const handle = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -19,15 +20,22 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
     try {
-      let data;
       if (mode === 'login') {
-        // identifier = email or phone — user types either
-        data = await login(form.identifier, form.password);
-        signIn({
-          email: data.user.email,
-          phone: data.user.phone,
-          username: data.user.username,
+        const result = await signIn('credentials', {
+          identifier: form.identifier,
+          password: form.password,
+          redirect: false,
         });
+
+        if (result?.error) {
+          if (result.error === 'CredentialsSignin') {
+            setError('Invalid email/phone/username or password');
+          } else {
+            setError(result.error);
+          }
+        } else if (result?.ok) {
+          router.push('/dashboard');
+        }
       } else {
         const email = form.email.trim().toLowerCase();
         const phone = form.phone.replace(/\D/g, '');
@@ -36,19 +44,28 @@ export default function AuthPage() {
           setLoading(false);
           return;
         }
-        data = await register({
+        await register({
           email,
           phone,
           username: form.username.trim(),
           password: form.password,
         });
-        signIn({
-          email,
-          phone,
-          username: data.username,
+        // Auto-login the new user via NextAuth
+        const result = await signIn('credentials', {
+          identifier: email,
+          password: form.password,
+          redirect: false,
         });
+        if (result?.ok) {
+          router.push('/dashboard');
+        } else if (result?.error) {
+          if (result.error === 'CredentialsSignin') {
+            setError('Account created, but sign-in failed. Please sign in manually.');
+          } else {
+            setError(result.error);
+          }
+        }
       }
-      router.push('/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -178,4 +195,12 @@ export default function AuthPage() {
       </div>
     </div>
   );
+}
+
+export async function getServerSideProps(context) {
+  const session = await getServerSession(context.req, context.res, authOptions);
+  if (session) {
+    return { redirect: { destination: '/dashboard', permanent: false } };
+  }
+  return { props: {} };
 }

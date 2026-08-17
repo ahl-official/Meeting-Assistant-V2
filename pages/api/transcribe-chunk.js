@@ -1,3 +1,6 @@
+import { getServerSession } from 'next-auth';
+import { authOptions } from './auth/[...nextauth]';
+
 export const config = {
     api: {
         bodyParser: false,
@@ -65,6 +68,11 @@ async function uploadAudioBuffer(audioBuffer, apiKey) {
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).end();
+
+    const session = await getServerSession(req, res, authOptions);
+    if (!session) {
+        return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
 
     const apiKey = process.env.ASSEMBLYAI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'ASSEMBLYAI_API_KEY not set' });

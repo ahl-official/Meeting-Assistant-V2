@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../lib/auth';
-import { getAllUsers, getPassword, setAdmin, setActive } from '../../lib/api';
+import { getAllUsers, setAdmin, setActive } from '../../lib/api';
 import AdminLayout from '../../components/AdminLayout';
 import styles from '../../styles/Admin.module.css';
 
@@ -22,12 +22,6 @@ export default function AdminUsers() {
     const [filter, setFilter] = useState('all');
     const [busy, setBusy] = useState({});
 
-    // Password modal
-    const [pwModal, setPwModal] = useState(null);
-    const [pwValue, setPwValue] = useState('');
-    const [pwLoading, setPwLoading] = useState(false);
-    const [pwCopied, setPwCopied] = useState(false);
-
     useEffect(() => {
         if (!ready) return;
         loadUsers();
@@ -45,33 +39,12 @@ export default function AdminUsers() {
         }
     };
 
-    const handleGetPassword = async (target) => {
-        setPwModal(target);
-        setPwValue('');
-        setPwCopied(false);
-        setPwLoading(true);
-        try {
-            const data = await getPassword(user.username, target.username);
-            setPwValue(data.password);
-        } catch (err) {
-            setPwValue('Error: ' + err.message);
-        } finally {
-            setPwLoading(false);
-        }
-    };
-
-    const handleCopy = () => {
-        navigator.clipboard.writeText(pwValue);
-        setPwCopied(true);
-        setTimeout(() => setPwCopied(false), 2000);
-    };
-
     const handleToggleActive = async (target) => {
         const newVal = !target.active;
         if (!confirm(`${newVal ? 'Activate' : 'Deactivate'} account for ${target.username}?`)) return;
         setBusy(b => ({ ...b, [target.username + '_active']: true }));
         try {
-            await setActive(target.username, newVal);
+            await setActive(user.username, target.username, newVal);
             setUsers(prev => prev.map(u =>
                 u.username === target.username ? { ...u, active: newVal } : u
             ));
@@ -193,11 +166,13 @@ export default function AdminUsers() {
                                             </td>
                                             <td>
                                                 <div className={styles.tdActions}>
+                                                    {/* Password reveal removed — bcrypt hashes are one-way */}
                                                     <button
-                                                        className="btn btn-sm btn-primary"
-                                                        onClick={() => handleGetPassword(u)}
+                                                        className="btn btn-sm btn-secondary"
+                                                        disabled
+                                                        title="Password reset coming soon"
                                                     >
-                                                        🔑 Password
+                                                        Password Reset
                                                     </button>
                                                     <button
                                                         className={'btn btn-sm ' + (u.active ? 'btn-danger' : 'btn-secondary')}
@@ -225,31 +200,6 @@ export default function AdminUsers() {
                     )}
                 </main>
             </div>
-
-            {/* Password modal */}
-            {pwModal && (
-                <div className={styles.overlay} onClick={() => setPwModal(null)}>
-                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                        <h2 className={styles.modalTitle}>Password for {pwModal.username}</h2>
-                        <p className={styles.modalSub}>{pwModal.email || pwModal.phone || ''}</p>
-                        {pwLoading ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 0', color: 'var(--gray-400)' }}>
-                                <span className="spinner" /> Retrieving password…
-                            </div>
-                        ) : (
-                            <div className={styles.passwordBox}>{pwValue}</div>
-                        )}
-                        <div className={styles.modalActions}>
-                            <button className="btn btn-primary" onClick={handleCopy} disabled={!pwValue || pwLoading}>
-                                {pwCopied ? '✓ Copied!' : '📋 Copy'}
-                            </button>
-                            <button className="btn btn-secondary" onClick={() => { setPwModal(null); setPwValue(''); }}>
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </AdminLayout>
     );
 }

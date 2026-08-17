@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Navbar from '../../components/Navbar';
 import TaskPanel from '../../components/TaskPanel';
 import { useAuth } from '../../lib/auth';
-import { getMeetings, updateMeeting } from '../../lib/api';
+import { getMeeting, updateMeeting } from '../../lib/api';
 import styles from '../../styles/MeetingDetail.module.css';
 
 export default function MeetingDetail() {
@@ -30,7 +30,7 @@ export default function MeetingDetail() {
   const [waError, setWaError] = useState('');
   const [waResults, setWaResults] = useState(null);
 
-  // Debounce ref — prevents hammering Apps Script on every keystroke
+  // Debounce ref — prevents hammering the API on every keystroke
   const autoSaveTimer = useRef(null);
 
   useEffect(() => {
@@ -52,9 +52,10 @@ export default function MeetingDetail() {
 
   const fetchMeeting = async () => {
     setFetching(true);
+    setError('');
     try {
-      const data = await getMeetings(user.username);
-      const found = (data.meetings || []).find(m => m.id === id);
+      const data = await getMeeting(user.username, id);
+      const found = data.meeting;
       if (!found) { router.push('/dashboard'); return; }
       setMeeting(found);
       setEditData({
@@ -67,6 +68,10 @@ export default function MeetingDetail() {
         tasks: JSON.parse(JSON.stringify(found.tasks || [])),
       });
     } catch (err) {
+      if (/meeting not found/i.test(err.message || '')) {
+        router.push('/dashboard');
+        return;
+      }
       setError(err.message);
     } finally {
       setFetching(false);
@@ -92,13 +97,13 @@ export default function MeetingDetail() {
 
   // ── Auto-save triggered by TaskPanel on every AP or task change ───────────
   // This is the KEY fix: previously this only updated local state.
-  // Now it also persists actionPoints + tasks to Google Sheets via updateMeeting.
+  // Now it also persists actionPoints + tasks to Supabase via updateMeeting.
   // A 600ms debounce prevents a flood of requests when the user edits quickly.
   const handleTasksPanelChange = ({ actionPoints, tasks }) => {
     // 1. Update local state immediately so the UI stays responsive
     setEditData(d => ({ ...d, actionPoints, tasks }));
 
-    // 2. Debounced persist to Sheets
+    // 2. Debounced persist to Supabase
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       setAutoSaving(true);
@@ -193,6 +198,17 @@ export default function MeetingDetail() {
     } finally {
       setWaSending(false);
     }
+  };
+
+  const downloadSRT = () => {
+    if (!meeting?.srt) return;
+    const blob = new Blob([meeting.srt], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (meeting.title || 'transcript') + '.srt';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading || !user || fetching) {
@@ -310,7 +326,14 @@ export default function MeetingDetail() {
         {tab === 'transcript' && (
           <div className={styles.content + ' fade-in'}>
             <div className={'card ' + styles.card} style={{ maxWidth: 800 }}>
-              <h2 className={styles.cardTitle}>Full Transcript</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <h2 className={styles.cardTitle} style={{ margin: 0 }}>Full Transcript</h2>
+                {meeting.srt ? (
+                  <button type="button" className="btn btn-secondary" onClick={downloadSRT}>
+                    ↓ Download .srt
+                  </button>
+                ) : null}
+              </div>
               <pre className={styles.transcript}>{meeting.transcript || 'No transcript available.'}</pre>
             </div>
           </div>

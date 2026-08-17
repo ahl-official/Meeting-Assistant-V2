@@ -36,6 +36,7 @@ const M_TYPE       = 8;
 const M_CREATED_AT = 9;
 const M_UPDATED_AT = 10;
 const M_TASKS      = 11;
+const M_SRT        = 12;
 
 // ── LOGS tab columns ──────────────────────────────────────────
 const L_TIMESTAMP = 0;
@@ -289,7 +290,7 @@ function getSheetForEmail(ss, email, create) {
     const headers = [
       'id', 'title', 'transcript', 'summary',
       'action_points', 'decisions', 'next_steps',
-      'duration', 'type', 'created_at', 'updated_at', 'tasks'
+      'duration', 'type', 'created_at', 'updated_at', 'tasks', 'srt'
     ];
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length)
@@ -299,8 +300,24 @@ function getSheetForEmail(ss, email, create) {
     sheet.setColumnWidth(4, 300);
     sheet.setColumnWidth(5, 300);
     sheet.setColumnWidth(12, 350);
+    sheet.setColumnWidth(13, 350);
+    return sheet;
   }
+
+  ensureMeetingSrtColumn(sheet);
   return sheet;
+}
+
+/** Add srt column to existing user tabs created before this field existed. */
+function ensureMeetingSrtColumn(sheet) {
+  if (!sheet || sheet.getLastRow() === 0) return;
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || '').trim());
+  if (headers.includes('srt')) return;
+  const encCol = headers.length + 1;
+  sheet.getRange(1, encCol).setValue('srt');
+  sheet.getRange(1, encCol)
+    .setFontWeight('bold').setBackground('#1a1a2e').setFontColor('#ffffff');
 }
 
 // ── kept for backward compat but all handlers now use resolveUserSheet ──
@@ -530,6 +547,7 @@ function handleGetMeetings(body, t0) {
         createdAt:    row[M_CREATED_AT] || '',
         updatedAt:    row[M_UPDATED_AT] || '',
         tasks:        safeJSON(row[M_TASKS], '[]'),
+        srt:          row[M_SRT] || '',
       });
     } catch (ex) {
       log('WARN', 'getMeetings', username, 'SHEETS_READ', 'Skipped malformed row ' + i, ex.message);
@@ -569,6 +587,7 @@ function handleSaveMeeting(body, t0) {
     meeting.createdAt                   || new Date().toISOString(),
     meeting.updatedAt                   || new Date().toISOString(),
     JSON.stringify(meeting.tasks        || []),
+    meeting.srt                         || '',
   ]);
 
   log('INFO', 'saveMeeting', username, 'SHEETS_WRITE', 'Meeting saved',
@@ -600,6 +619,7 @@ function handleSaveTranscript(body, t0) {
     new Date().toISOString(),
     new Date().toISOString(),
     '[]', // tasks — filled in by saveAnalysis
+    '',   // srt
   ]);
 
   log('INFO', 'saveTranscript', username, 'DEEPGRAM→SHEETS', 'Transcript saved', {
@@ -676,6 +696,7 @@ function handleUpdateMeeting(body, t0) {
       if (updates.nextSteps    !== undefined) resolved.sheet.getRange(rowNum, M_NEXT_STEPS  + 1).setValue(updates.nextSteps);
       if (updates.type         !== undefined) resolved.sheet.getRange(rowNum, M_TYPE        + 1).setValue(updates.type);
       if (updates.tasks        !== undefined) resolved.sheet.getRange(rowNum, M_TASKS       + 1).setValue(JSON.stringify(updates.tasks));
+      if (updates.srt          !== undefined) resolved.sheet.getRange(rowNum, M_SRT         + 1).setValue(updates.srt);
       resolved.sheet.getRange(rowNum, M_UPDATED_AT + 1).setValue(new Date().toISOString());
 
       log('INFO', 'updateMeeting', username, 'SHEETS_WRITE', 'Meeting updated', {
@@ -889,6 +910,7 @@ function handleGetAllMeetings(body, t0) {
           createdAt:    row[M_CREATED_AT] || '',
           updatedAt:    row[M_UPDATED_AT] || '',
           tasks:        safeJSON(row[M_TASKS], '[]'),
+          srt:          row[M_SRT] || '',
         });
       } catch (ex) {
         log('WARN', 'getAllMeetings', body.adminUsername, 'ADMIN',

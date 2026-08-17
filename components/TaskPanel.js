@@ -42,7 +42,7 @@ export default function TasksPanel({ actionPoints, tasks: propTasks, onTasksChan
 
     // ── Commit helpers — call setState AND notify parent ──────────────────────
     // All user-initiated mutations (add, edit, remove, generate) must go through
-    // one of these two functions so the parent can auto-save to Sheets.
+    // one of these two functions so the parent can auto-save to Supabase.
     const commitAPs = (next) => {
         setAps(next);
         onTasksChange?.({ actionPoints: next, tasks });

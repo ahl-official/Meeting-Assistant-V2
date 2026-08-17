@@ -3,12 +3,19 @@
 // Sends meeting action plan via WAHA (WhatsApp HTTP API)
 // ============================================================
 
-const WAHA_BASE_URL = (process.env.WAHA_BASE_URL === 'https://waha.amankhan.space'
-    ? 'https://waha.hairscalptradingco.com'
-    : process.env.WAHA_BASE_URL || 'https://waha.hairscalptradingco.com'
-).replace(/\/$/, '');
-const WAHA_API_KEY = process.env.WAHA_API_KEY;
-const WAHA_SESSION = process.env.WAHA_SESSION;
+import { getServerSession } from 'next-auth';
+import { authOptions } from './auth/[...nextauth]';
+
+// Cloudflare in front of WAHA returns 403 / error 1010 for clients
+// that look like bots (missing or non-browser User-Agent).
+function wahaHeaders(apiKey, extra = {}) {
+    return {
+        Accept: 'application/json',
+        'X-Api-Key': apiKey,
+        'User-Agent': 'AI-Meeting-Assistant/1.0 (WhatsApp share)',
+        ...extra,
+    };
+}
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -26,35 +33,41 @@ function toChatId(raw) {
     return digits + '@c.us';
 }
 
-async function resolveChatId(raw) {
+async function resolveChatId(raw, config) {
     const fallbackChatId = toChatId(raw);
     if (!fallbackChatId) return null;
 
     const phone = fallbackChatId.replace('@c.us', '');
-    const url = new URL(`${WAHA_BASE_URL}/api/contacts/check-exists`);
+    const url = new URL('/api/contacts/check-exists', config.baseUrl);
     url.searchParams.set('phone', phone);
-    url.searchParams.set('session', WAHA_SESSION);
+    url.searchParams.set('session', config.session);
 
-    const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'X-Api-Key': WAHA_API_KEY,
-        },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const body = await response.text();
-    if (!response.ok) {
-        throw new Error(`WAHA number check failed (${response.status}): ${body}`);
+    try {
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: wahaHeaders(config.apiKey),
+            signal: controller.signal,
+        });
+
+        const body = await response.text();
+        if (!response.ok) {
+            throw new Error(`WAHA number check failed (${response.status}): ${body}`);
+        }
+
+        const data = body ? JSON.parse(body) : {};
+        if (data.numberExists === false) {
+            throw new Error(`Number ${phone} is not registered on WhatsApp`);
+        }
+
+        return data.chatId || fallbackChatId;
+    } finally {
+        clearTimeout(timeout);
     }
-
-    const data = body ? JSON.parse(body) : {};
-    if (data.numberExists === false) {
-        throw new Error(`Number ${phone} is not registered on WhatsApp`);
-    }
-
-    return data.chatId || fallbackChatId;
 }
+
 // ── USER MESSAGE (FULL) ───────────────────────────────────────
 
 function buildUserMessage(meeting, username) {
@@ -176,51 +189,69 @@ function buildCoordinatorMessage(meeting, username) {
 
     return lines.join('\n');
 }
+
 // ── SEND MESSAGE ─────────────────────────────────────────────
 
-async function sendMessage(chatId, text) {
-    const url = `${WAHA_BASE_URL}/api/sendText`;
+async function sendMessage(chatId, text, config) {
+    const endpoint = new URL('/api/sendText', config.baseUrl).toString();
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': WAHA_API_KEY,
-        },
-        body: JSON.stringify({
-            chatId,
-            text,
-            session: WAHA_SESSION,
-        }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-    const body = await response.text();
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: wahaHeaders(config.apiKey, { 'Content-Type': 'application/json' }),
+            body: JSON.stringify({
+                chatId,
+                text,
+                session: config.session,
+            }),
+            signal: controller.signal,
+        });
 
-    if (!response.ok) {
-        let detail = body;
-        try {
-            detail = JSON.parse(body)?.message || detail;
-        } catch { }
+        const body = await response.text();
 
-        throw new Error(`WAHA error (${response.status}): ${detail}`);
+        if (!response.ok) {
+            let detail = body;
+            try {
+                detail = JSON.parse(body)?.message || detail;
+            } catch { }
+
+            throw new Error(`WAHA error (${response.status}): ${detail}`);
+        }
+
+        return true;
+    } finally {
+        clearTimeout(timeout);
     }
-
-    return true;
 }
 
 // ── API HANDLER ─────────────────────────────────────────────
 
 export default async function handler(req, res) {
-    if (!WAHA_BASE_URL || !WAHA_API_KEY || !WAHA_SESSION) {
-        return res.status(500).json({
-            success: false,
-            error: 'WAHA environment variables not configured.',
-        });
-    }
-
     if (req.method !== 'POST') {
         return res.status(405).end();
     }
+
+    const session = await getServerSession(req, res, authOptions);
+    if (!session) {
+        return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const WAHA_BASE_URL = process.env.WAHA_API_URL || process.env.WAHA_BASE_URL;
+
+    if (!WAHA_BASE_URL) {
+        return res.status(500).json({
+            success: false,
+            error: 'WhatsApp service not configured. Set WAHA_API_URL in environment variables.',
+        });
+    }
+
+    const baseUrl = WAHA_BASE_URL.replace(/\/+$/, '');
+    const WAHA_API_KEY = process.env.WAHA_API_KEY || '';
+    const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
+    const config = { baseUrl, apiKey: WAHA_API_KEY, session: WAHA_SESSION };
 
     const { meeting, userPhone, coordinatorPhone, username } = req.body || {};
 
@@ -236,13 +267,13 @@ export default async function handler(req, res) {
     const resolveErrors = [];
 
     try {
-        userChatId = await resolveChatId(userPhone);
+        userChatId = await resolveChatId(userPhone, config);
     } catch (err) {
         resolveErrors.push(`User (${userPhone}): ${err.message}`);
     }
 
     try {
-        coordChatId = await resolveChatId(coordinatorPhone);
+        coordChatId = await resolveChatId(coordinatorPhone, config);
     } catch (err) {
         resolveErrors.push(`Coordinator (${coordinatorPhone}): ${err.message}`);
     }
@@ -259,7 +290,7 @@ export default async function handler(req, res) {
 
     if (userChatId) {
         try {
-            await sendMessage(userChatId, buildUserMessage(meeting, username));
+            await sendMessage(userChatId, buildUserMessage(meeting, username), config);
             results.user = 'sent';
         } catch (err) {
             results.user = 'failed';
@@ -271,7 +302,7 @@ export default async function handler(req, res) {
 
     if (coordChatId) {
         try {
-            await sendMessage(coordChatId, buildCoordinatorMessage(meeting, username));
+            await sendMessage(coordChatId, buildCoordinatorMessage(meeting, username), config);
             results.coordinator = 'sent';
         } catch (err) {
             results.coordinator = 'failed';

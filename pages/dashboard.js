@@ -18,17 +18,18 @@ export default function Dashboard() {
   }, [user, loading]);
 
   useEffect(() => {
-    if (user) fetchMeetings();
-  }, [user]);
+    if (user?.username) fetchMeetings();
+  }, [user?.username]);
 
   const fetchMeetings = async () => {
     setFetching(true);
     try {
-      // ✅ FIX: pass user.username — AppScript resolves username → email → sheet tab
+      // ✅ FIX: pass user.username — backend resolves user identity for Supabase query
       const data = await getMeetings(user.username);
       setMeetings(data.meetings || []);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to fetch meetings:', err);
+      setMeetings([]);
     } finally {
       setFetching(false);
     }
@@ -65,7 +66,7 @@ export default function Dashboard() {
           <div>
             <h1 className={styles.title}>Meetings</h1>
             <p className={styles.subtitle}>
-              {meetings.length} meeting{meetings.length !== 1 ? 's' : ''} recorded
+              {fetching ? 'Loading...' : `${meetings.length} meeting${meetings.length !== 1 ? 's' : ''} recorded`}
             </p>
           </div>
           <button className="btn btn-primary" onClick={() => router.push('/meeting/new')}>
@@ -105,7 +106,7 @@ export default function Dashboard() {
               >
                 <div className={styles.cardTop}>
                   <div className={styles.cardMeta}>
-                    <span className="badge badge-blue">{meeting.type || 'Meeting'}</span>
+                    <span className="badge badge-blue">{meeting.type || 'recording'}</span>
                     <span className={styles.date}>
                       {new Date(meeting.createdAt).toLocaleDateString('en-GB', {
                         day: 'numeric', month: 'short', year: 'numeric'

@@ -14,7 +14,7 @@ function useAdminGuard() {
     return { user, loading, ready: !loading && !!user?.isAdmin };
 }
 
-const TYPES = ['All Types', 'Meeting', 'Interview', 'Standup', 'Review', 'Other'];
+const TYPES = ['All Types', 'recording', 'upload', 'paste'];
 
 export default function AdminMeetings() {
     const { user, ready } = useAdminGuard();
@@ -178,7 +178,7 @@ export default function AdminMeetings() {
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div className={styles.meetingMeta}>
                                                 <span className={styles.ownerBadge}>{m.owner}</span>
-                                                <span className="badge badge-blue">{m.type || 'Meeting'}</span>
+                                                <span className="badge badge-blue">{m.type || 'recording'}</span>
                                                 <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>
                                                     {m.createdAt
                                                         ? new Date(m.createdAt).toLocaleDateString('en-GB', {
@@ -245,7 +245,7 @@ export default function AdminMeetings() {
                             <div>
                                 <h2 className={styles.modalTitle}>{detail.title || 'Untitled Meeting'}</h2>
                                 <p className={styles.modalSub}>
-                                    {detail.owner} · {detail.type || 'Meeting'} ·{' '}
+                                    {detail.owner} · {detail.type || 'recording'} ·{' '}
                                     {detail.createdAt ? new Date(detail.createdAt).toLocaleDateString('en-GB', {
                                         day: 'numeric', month: 'short', year: 'numeric'
                                     }) : ''}

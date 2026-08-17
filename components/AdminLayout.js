@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../lib/auth';
-import { getAllUsers, getPassword, getMeetings } from '../lib/api';
+import { getAllUsers, getMeetings } from '../lib/api';
 
 const NAV_ITEMS = [
     { key: 'dashboard', label: 'Dashboard', icon: '▦' },
     { key: 'credentials', label: 'User Credentials', icon: '🔑' },
     { key: 'userdata', label: 'User Data', icon: '👤' },
     { key: 'meetings', label: 'All Meetings', icon: '📋' },
-    { key: 'settings', label: 'Settings', icon: '⚙' },
 ];
 
 export default function AdminLayout({ children, active }) {
@@ -20,7 +19,6 @@ export default function AdminLayout({ children, active }) {
 
     // Credentials section
     const [credOpen, setCredOpen] = useState({});   // { username: bool }
-    const [credData, setCredData] = useState({});   // { username: { password, loading } }
     const [credCopied, setCredCopied] = useState({});
 
     // User Data section
@@ -46,7 +44,6 @@ export default function AdminLayout({ children, active }) {
             credentials: '/admin/users',
             userdata: '/admin/meetings?view=userdata',
             meetings: '/admin/meetings',
-            settings: '/admin/settings',
         };
         router.push(routes[key] || '/admin');
     };
@@ -57,18 +54,9 @@ export default function AdminLayout({ children, active }) {
     };
 
     // ── Credentials: expand/collapse a user row ──────────────────
-    const toggleCred = async (u) => {
-        const isOpen = credOpen[u.username];
-        setCredOpen(prev => ({ ...prev, [u.username]: !isOpen }));
-        if (!isOpen && !credData[u.username]?.password) {
-            setCredData(prev => ({ ...prev, [u.username]: { loading: true } }));
-            try {
-                const d = await getPassword(user.username, u.username);
-                setCredData(prev => ({ ...prev, [u.username]: { password: d.password, loading: false } }));
-            } catch (err) {
-                setCredData(prev => ({ ...prev, [u.username]: { password: 'Error: ' + err.message, loading: false } }));
-            }
-        }
+    // Password reveal removed — bcrypt hashes are one-way
+    const toggleCred = (u) => {
+        setCredOpen(prev => ({ ...prev, [u.username]: !prev[u.username] }));
     };
 
     const copyCred = (username, text) => {
@@ -146,54 +134,41 @@ export default function AdminLayout({ children, active }) {
 
                                                 {credOpen[u.username] && (
                                                     <div style={styles.credExpanded}>
-                                                        {credData[u.username]?.loading ? (
-                                                            <div style={styles.credLoading}>Fetching…</div>
-                                                        ) : (
-                                                            <>
-                                                                <div style={styles.credField}>
-                                                                    <span style={styles.credFieldLabel}>Username</span>
-                                                                    <div style={styles.credFieldRow}>
-                                                                        <span style={styles.credFieldValue}>{u.username}</span>
-                                                                        <button style={styles.copyBtn} onClick={() => copyCred(u.username + '_u', u.username)}>
-                                                                            {credCopied[u.username + '_u'] ? '✓' : '⧉'}
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <div style={styles.credField}>
-                                                                    <span style={styles.credFieldLabel}>Password</span>
-                                                                    <div style={styles.credFieldRow}>
-                                                                        <span style={styles.credFieldValue}>
-                                                                            {credData[u.username]?.password || '—'}
-                                                                        </span>
-                                                                        <button
-                                                                            style={styles.copyBtn}
-                                                                            onClick={() => copyCred(u.username + '_p', credData[u.username]?.password)}
-                                                                            disabled={!credData[u.username]?.password}
-                                                                        >
-                                                                            {credCopied[u.username + '_p'] ? '✓' : '⧉'}
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                {u.email && (
-                                                                    <div style={styles.credMeta}>{u.email}</div>
-                                                                )}
-                                                                {u.phone && (
-                                                                    <div style={styles.credMeta}>{u.phone}</div>
-                                                                )}
-                                                                <div style={styles.credMeta}>
-                                                                    <span style={{
-                                                                        ...styles.credStatus,
-                                                                        background: u.active ? '#dcfce7' : '#fee2e2',
-                                                                        color: u.active ? '#166534' : '#991b1b',
-                                                                    }}>
-                                                                        {u.active ? 'Active' : 'Inactive'}
-                                                                    </span>
-                                                                    {u.isAdmin && (
-                                                                        <span style={styles.credAdminBadge}>Admin</span>
-                                                                    )}
-                                                                </div>
-                                                            </>
+                                                        <div style={styles.credField}>
+                                                            <span style={styles.credFieldLabel}>Username</span>
+                                                            <div style={styles.credFieldRow}>
+                                                                <span style={styles.credFieldValue}>{u.username}</span>
+                                                                <button style={styles.copyBtn} onClick={() => copyCred(u.username + '_u', u.username)}>
+                                                                    {credCopied[u.username + '_u'] ? '✓' : '⧉'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div style={styles.credField}>
+                                                            <span style={styles.credFieldLabel}>Password</span>
+                                                            <div style={styles.credFieldRow}>
+                                                                <span style={styles.credFieldValue}>
+                                                                    Not available (hashed)
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {u.email && (
+                                                            <div style={styles.credMeta}>{u.email}</div>
                                                         )}
+                                                        {u.phone && (
+                                                            <div style={styles.credMeta}>{u.phone}</div>
+                                                        )}
+                                                        <div style={styles.credMeta}>
+                                                            <span style={{
+                                                                ...styles.credStatus,
+                                                                background: u.active ? '#dcfce7' : '#fee2e2',
+                                                                color: u.active ? '#166534' : '#991b1b',
+                                                            }}>
+                                                                {u.active ? 'Active' : 'Inactive'}
+                                                            </span>
+                                                            {u.isAdmin && (
+                                                                <span style={styles.credAdminBadge}>Admin</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>

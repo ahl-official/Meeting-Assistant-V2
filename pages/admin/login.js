@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../../lib/auth';
-import { login } from '../../lib/api';
+import { signIn, signOut, getSession } from 'next-auth/react';
 import styles from '../../styles/Admin.module.css';
 
 export default function AdminLogin() {
-    const { signIn } = useAuth();
     const router = useRouter();
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -16,17 +14,38 @@ export default function AdminLogin() {
         e.preventDefault();
         setError('');
         setLoading(true);
+
         try {
-            const data = await login(identifier, password);
-            if (!data.user?.isAdmin) {
-                setError('Access denied. This login is for admins only.');
+            const result = await signIn('credentials', {
+                identifier,
+                password,
+                redirect: false,
+            });
+
+            if (result?.error) {
+                if (result.error === 'CredentialsSignin') {
+                    setError('Invalid credentials');
+                } else {
+                    setError(result.error);
+                }
+                setLoading(false);
                 return;
             }
-            signIn(data.user);
+
+            // Verify the signed-in user is actually an admin
+            const session = await getSession();
+            if (!session?.user?.isAdmin) {
+                // Not an admin — sign them out immediately
+                await signOut({ redirect: false });
+                setError('Admin access required');
+                setLoading(false);
+                return;
+            }
+
+            // Admin verified — redirect to admin panel
             router.push('/admin');
         } catch (err) {
             setError(err.message || 'Login failed');
-        } finally {
             setLoading(false);
         }
     };
@@ -71,7 +90,7 @@ export default function AdminLogin() {
                         type="submit"
                         disabled={loading}
                     >
-                        {loading ? <><span className="spinner" /> Signing in…</> : 'Sign in to Admin'}
+                        {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
 

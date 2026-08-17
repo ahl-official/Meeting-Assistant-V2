@@ -1,10 +1,20 @@
 // pages/api/generate-tasks.js
 // This file ONLY generates tasks via OpenRouter and returns them to the frontend.
-// Persisting tasks to Google Sheets is handled by [id].js → handleTasksPanelChange
-// which calls updateMeeting (lib/api.js → Apps Script updateMeeting action).
+// Persisting tasks to Supabase is handled by [id].js → handleTasksPanelChange
+// which calls updateMeeting (lib/api.js → /api/db updateMeeting action).
+
+import { getServerSession } from 'next-auth';
+import { authOptions } from './auth/[...nextauth]';
+
+const LLM_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-lite';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).end();
+
+    const session = await getServerSession(req, res, authOptions);
+    if (!session) {
+        return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
 
     const { actionPoints } = req.body;
 
@@ -64,7 +74,7 @@ Return ONLY the JSON array. No markdown fences, no explanation, no preamble.`;
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'google/gemini-2.5-flash-lite',
+                model: LLM_MODEL,
                 messages: [{ role: 'user', content: prompt }],
                 temperature: 0.1,
                 max_tokens: 3000,
