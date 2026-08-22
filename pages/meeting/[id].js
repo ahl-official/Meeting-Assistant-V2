@@ -178,10 +178,9 @@ export default function MeetingDetail() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          meeting,
+          meetingId: meeting.id,
           userPhone: uPhone.trim() || null,
           coordinatorPhone: cPhone.trim() || null,
-          username: user?.username || null,
         }),
       });
       const data = await res.json();

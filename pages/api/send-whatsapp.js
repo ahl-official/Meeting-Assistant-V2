@@ -5,6 +5,7 @@
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from './auth/[...nextauth]';
+import { getMeeting } from '../../lib/db';
 
 // Cloudflare in front of WAHA returns 403 / error 1010 for clients
 // that look like bots (missing or non-browser User-Agent).
@@ -253,14 +254,27 @@ export default async function handler(req, res) {
     const WAHA_SESSION = process.env.WAHA_SESSION || 'default';
     const config = { baseUrl, apiKey: WAHA_API_KEY, session: WAHA_SESSION };
 
-    const { meeting, userPhone, coordinatorPhone, username } = req.body || {};
+    const { meetingId, userPhone, coordinatorPhone } = req.body || {};
 
-    if (!meeting) {
+    if (!meetingId) {
         return res.status(400).json({
             success: false,
-            error: 'Missing meeting data',
+            error: 'Missing meetingId',
         });
     }
+
+    let meeting;
+    try {
+        const result = await getMeeting({ _authenticatedUser: session.user.username, meetingId });
+        meeting = result.meeting;
+    } catch (err) {
+        return res.status(404).json({
+            success: false,
+            error: 'Meeting not found',
+        });
+    }
+
+    const username = session.user.username;
 
     let userChatId = null;
     let coordChatId = null;
