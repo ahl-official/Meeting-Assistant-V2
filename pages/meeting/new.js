@@ -155,10 +155,16 @@ export default function NewMeeting() {
         if (!chunks.length) throw new Error('No audio detected in file.');
 
         results = [];
-        for (let i = 0; i < chunks.length; i++) {
-          const result = await uploadChunkAndTranscribe(chunks[i].blob);
-          results.push({ ...result, offsetMs: chunks[i].startMs });
-          setUploadProgress(15 + Math.round(((i + 1) / chunks.length) * 75));
+        const BATCH_SIZE = 3;
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+          const batch = chunks.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.all(
+            batch.map(chunk => uploadChunkAndTranscribe(chunk.blob))
+          );
+          batchResults.forEach((result, j) => {
+            results.push({ ...result, offsetMs: batch[j].startMs });
+          });
+          setUploadProgress(15 + Math.round(((i + batch.length) / chunks.length) * 75));
         }
       } else if (file.size <= SINGLE_REQUEST_MAX_BYTES) {
         setUploadProgress(25);
