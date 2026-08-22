@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
     const { actionPoints } = req.body;
 
-    if (!actionPoints || !actionPoints.length) {
+    if (!Array.isArray(actionPoints) || !actionPoints.length) {
         return res.status(400).json({ success: false, error: 'No action points provided' });
     }
 

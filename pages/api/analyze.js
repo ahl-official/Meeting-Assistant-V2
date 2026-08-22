@@ -379,11 +379,8 @@ ${transcript}`, { temperature: 0.2, max_tokens: 1000 }),
       nextSteps = merged.nextSteps || '';
     }
   } catch (err) {
-    if (!summary) summary = 'Analysis failed: ' + err.message;
-    // If we have partial action points, keep them
-    if (!deduped.length) {
-      return res.status(500).json({ success: false, error: 'Analysis failed: ' + err.message });
-    }
+    console.error('[analyze] Analysis failed:', err.message);
+    return res.status(500).json({ success: false, error: 'Analysis failed: ' + err.message });
   }
 
   // ── 4. Generate tasks from merged summary + action points ──
