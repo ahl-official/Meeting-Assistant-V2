@@ -98,6 +98,35 @@ export default function NewMeeting() {
     throw new Error('Transcription timed out while waiting for AssemblyAI');
   };
 
+  const uploadChunkAndTranscribe = async (blob) => {
+    const uploadRes = await fetch('/api/aai-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+      body: blob,
+    });
+    const uploadData = await uploadRes.json().catch(() => ({}));
+    if (!uploadRes.ok || !uploadData.upload_url) {
+      throw new Error(uploadData.error || `Chunk upload failed (${uploadRes.status})`);
+    }
+
+    const transcribeRes = await fetch('/api/transcribe-chunk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upload_url: uploadData.upload_url }),
+    });
+    const transcribeData = await transcribeRes.json().catch(() => ({}));
+    if (!transcribeRes.ok || !transcribeData.id) {
+      throw new Error(transcribeData.error || 'Failed to start transcription job');
+    }
+
+    return pollTranscript(transcribeData.id, 5000);
+  };
+
+  // Vercel serverless functions cap request bodies around 4.5MB, so files
+  // above this are chunked client-side before upload; smaller files go
+  // through in a single request.
+  const SINGLE_REQUEST_MAX_BYTES = 4 * 1024 * 1024;
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -106,68 +135,55 @@ export default function NewMeeting() {
     setTranscript('');
     setSrt('');
     setUploadState('uploading');
-    setUploadProgress(10);
+    setUploadProgress(5);
 
     try {
+      let audioBuffer = null;
       try {
-        const audioBuffer = await decodeAudioFile(file);
+        audioBuffer = await decodeAudioFile(file);
         setDuration(audioBuffer.duration);
       } catch (decodeErr) {
-        console.warn('Browser audio decode failed for duration check.', decodeErr);
+        console.warn('Browser audio decode failed.', decodeErr);
         setDuration(0);
       }
 
-      setUploadProgress(25);
+      let results;
 
-      // 1. Upload the entire file to /api/aai-upload in one request
-      const uploadRes = await fetch('/api/aai-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        body: file,
-      });
+      if (audioBuffer) {
+        setUploadProgress(15);
+        const chunks = await splitAudioBufferIntoWavChunks(audioBuffer, 60);
+        if (!chunks.length) throw new Error('No audio detected in file.');
 
-      const uploadData = await uploadRes.json().catch(() => ({}));
-      if (!uploadRes.ok || !uploadData.upload_url) {
-        throw new Error(uploadData.error || `File upload failed (${uploadRes.status})`);
+        results = [];
+        for (let i = 0; i < chunks.length; i++) {
+          const result = await uploadChunkAndTranscribe(chunks[i].blob);
+          results.push({ ...result, offsetMs: chunks[i].startMs });
+          setUploadProgress(15 + Math.round(((i + 1) / chunks.length) * 75));
+        }
+      } else if (file.size <= SINGLE_REQUEST_MAX_BYTES) {
+        setUploadProgress(25);
+        const result = await uploadChunkAndTranscribe(file);
+        setUploadProgress(90);
+        results = [{ ...result, offsetMs: 0 }];
+      } else {
+        throw new Error('This audio format could not be decoded in-browser and the file is too large to upload directly. Please convert it to mp3/wav/m4a and try again.');
       }
 
-      setUploadProgress(50);
+      setUploadProgress(95);
 
-      // 2. Start transcription job with speaker labels
-      const transcribeRes = await fetch('/api/transcribe-chunk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          upload_url: uploadData.upload_url,
-          speaker_labels: true,
-        }),
-      });
+      const finalTranscript = results
+        .map(r => {
+          if (r.utterances?.length) {
+            return r.utterances.map(u => `Speaker ${u.speaker}: ${u.text}`).join('\n\n');
+          }
+          return (r.text || r.transcript || '').trim();
+        })
+        .filter(Boolean)
+        .join('\n\n');
 
-      const transcribeData = await transcribeRes.json().catch(() => ({}));
-      if (!transcribeRes.ok || !transcribeData.id) {
-        throw new Error(transcribeData.error || 'Failed to start transcription job');
-      }
-
-      setUploadProgress(60);
-
-      // 3. Poll for completion every 5 seconds
-      const result = await pollTranscript(transcribeData.id, 5000);
-
-      setUploadProgress(90);
-
-      // 4. Use full transcript result directly (formatting with speaker labels if available)
-      let finalTranscript = (result.text || result.transcript || '').trim();
-      if (result.utterances && result.utterances.length > 0) {
-        finalTranscript = result.utterances
-          .map(u => `Speaker ${u.speaker}: ${u.text}`)
-          .join('\n\n');
-      }
-
-      const combinedSrt = buildSrtFromResults([{
-        utterances: result.utterances,
-        words: result.words,
-        offsetMs: 0,
-      }]);
+      const combinedSrt = buildSrtFromResults(
+        results.map(r => ({ utterances: r.utterances, words: r.words, offsetMs: r.offsetMs }))
+      );
 
       setTranscript(finalTranscript);
       setSrt(combinedSrt);
