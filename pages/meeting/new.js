@@ -155,7 +155,7 @@ export default function NewMeeting() {
         if (!chunks.length) throw new Error('No audio detected in file.');
 
         results = [];
-        const BATCH_SIZE = 3;
+        const BATCH_SIZE = 5;
         for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
           const batch = chunks.slice(i, i + BATCH_SIZE);
           const batchResults = await Promise.all(
