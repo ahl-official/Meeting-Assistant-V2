@@ -1,6 +1,8 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from './auth/[...nextauth]';
 
+export const maxDuration = 60;
+
 export const config = {
     api: {
         bodyParser: false,
